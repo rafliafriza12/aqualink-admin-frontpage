@@ -28,7 +28,7 @@ const Login: React.FC = () => {
 
   const onLogin = () => {
     setIsLoading(true);
-    API.post("/users/login", {
+    API.post("/admin/auth/login", {
       email: email,
       password: password,
     })
@@ -219,6 +219,7 @@ const Login: React.FC = () => {
           </div>
         </div>
       </div>
+      <ToastContainer />
     </div>
   ) : null;
 };

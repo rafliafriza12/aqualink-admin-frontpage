@@ -50,20 +50,20 @@ const Navbar = () => {
 
   const mainMenu: any = [
     {
-      label: "Beranda",
+      label: "Debitor",
       path: "/",
     },
     {
-      label: "Marketplace",
-      path: "/marketplace",
+      label: "Transaksi",
+      path: "/transaksi",
     },
     {
-      label: "Lapor Kebocoran",
-      path: "/lapor-kebocoran",
+      label: "Kredit Air",
+      path: "/kredit-air",
     },
     {
-      label: "Profil",
-      path: "/profile",
+      label: "Analitik",
+      path: "/analitik",
     },
   ];
 
@@ -166,7 +166,9 @@ const Navbar = () => {
             onClick={handleMenu}
             color="inherit"
           >
-            <Avatar sx={{ bgcolor: "#ffffff", color: "#001740" }}>RA</Avatar>
+            <div className=" bg-white text-black py-1 px-4 rounded-full">
+              <h1 className=" text-lg">{Auth.auth.user?.fullName}</h1>
+            </div>
           </IconButton>
           <Menu
             sx={{
@@ -221,6 +223,23 @@ const Navbar = () => {
         </DrawerHeader>
         <Divider />
         <List>
+          <ListItem>
+            <div className=" flex items-center gap-5 w-full">
+              <h1 className=" text-base font-semibold">
+                {Auth.auth.user?.fullName}
+              </h1>
+            </div>
+          </ListItem>
+          <ListItem>
+            <div className=" flex items-center gap-5 w-full">
+              <h1 className=" text-xs font-semibold">
+                ID : {Auth.auth.user?.id}
+              </h1>
+            </div>
+          </ListItem>
+        </List>
+        <Divider />
+        <List>
           {mainMenu.map((menu: any, index: number) => (
             <ListItem key={index} disablePadding>
               <Link
@@ -240,11 +259,7 @@ const Navbar = () => {
         </List>
         <Divider />
         <List>
-          {[
-            { text: "Kredit Air", path: "/tagihan" },
-            { text: "Transaksi", path: null },
-            { text: "Keluar", path: null },
-          ].map((item: any, index: number) => (
+          {[{ text: "Keluar", path: null }].map((item: any, index: number) => (
             <ListItem key={index} disablePadding>
               {item?.text !== "Keluar" ? (
                 <Link href={item?.path ?? ""} className="w-full">
