@@ -19,7 +19,7 @@ const UserLayout: React.FC<UserLayoutProps> = ({ children }) => {
     auth.isAuthenticated
       ? navigation.replace("/")
       : navigation.replace("/auth/login");
-  }, [auth.isAuthenticated]);
+  }, [auth.isAuthenticated, isDesktop]);
 
   return auth.isAuthenticated ? (
     <>
