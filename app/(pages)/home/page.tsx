@@ -31,7 +31,7 @@ const HomePage: React.FC = () => {
     setLoading(true); // Set loading to true before fetching
     try {
       const response = await API.get(
-        `/subscribe/getSubscribeByOwnerId/678d0e3608ae5e1031689347`,
+        `/subscribe/getSubscribeByOwnerId/${auth.auth.user?.id}`,
         {
           headers: {
             Authorization: auth.auth.token,

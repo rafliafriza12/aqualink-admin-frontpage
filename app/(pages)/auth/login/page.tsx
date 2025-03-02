@@ -6,6 +6,7 @@ import Logo from "@/app/components/logo/Logo";
 import Google from "@/app/components/logo/Google";
 import { useState } from "react";
 import TextField from "@mui/material/TextField";
+import Image from "next/image";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
@@ -16,6 +17,7 @@ import Aos from "aos";
 import { IsDesktop } from "@/app/hooks";
 import API from "@/app/utils/API";
 import { toast, Bounce, ToastContainer } from "react-toastify";
+import aqualink from "../../../../public/assets/logo/Aqualink_2.png";
 
 const Login: React.FC = () => {
   const navigation = useRouter();
@@ -90,7 +92,7 @@ const Login: React.FC = () => {
   return isDesktop ? (
     <div className="w-screen h-screen flex items-center justify-between overflow-hidden">
       <div className="h-full w-[50%] flex flex-col justify-center items-center gap-5 border-r-[1px] border-gray-400 shadow-[3px_0px_15px_gray]">
-        <Logo size={250} />
+        <Image src={aqualink} alt="Aqualink" width={250} height={250} />
         <div className=" flex flex-col items-center gap-3">
           <h1 className=" text-[#202226] font-semibold text-5xl">
             Selamat Datang

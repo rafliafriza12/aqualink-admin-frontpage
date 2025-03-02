@@ -26,6 +26,8 @@ import { IsDesktop } from "@/app/hooks";
 import Avatar from "@mui/material/Avatar";
 import { useAuth } from "@/app/hooks/UseAuth";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
+import aqualink from "../../../public/assets/logo/Aqualink_2.png";
 
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
@@ -60,10 +62,6 @@ const Navbar = () => {
     {
       label: "Kredit Air",
       path: "/kredit-air",
-    },
-    {
-      label: "Analitik",
-      path: "/analitik",
     },
   ];
 
@@ -152,6 +150,7 @@ const Navbar = () => {
           >
             <MenuIcon />
           </IconButton>
+          <Image src={aqualink} alt="Aqualink" width={50} height={50} />
           <Typography variant="h6" noWrap component="div" fontWeight={600}>
             AquaLink
           </Typography>

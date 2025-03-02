@@ -1,5 +1,6 @@
 {
-  "/page": "app/page.js",
   "/(pages)/auth/login/page": "app/(pages)/auth/login/page.js",
-  "/(pages)/debitor/[id]/page": "app/(pages)/debitor/[id]/page.js"
+  "/page": "app/page.js",
+  "/(pages)/transaksi/page": "app/(pages)/transaksi/page.js",
+  "/(pages)/kredit-air/page": "app/(pages)/kredit-air/page.js"
 }

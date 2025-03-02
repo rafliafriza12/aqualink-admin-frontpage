@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST="{\"app/(pages)/kredit-air/page.tsx -> ../../components/map/MapComponent\":{\"id\":\"app/(pages)/kredit-air/page.tsx -> ../../components/map/MapComponent\",\"files\":[\"static/chunks/_app-pages-browser_app_components_map_MapComponent_tsx.js\"]}}"
