@@ -1,6 +1,5 @@
-import HomePage from "./(pages)/home/page";
-const Home: React.FC = () => {
-  return <HomePage />;
-};
+import { redirect } from 'next/navigation';
 
-export default Home;
+export default function HomePage() {
+  redirect('/auth/login');
+}

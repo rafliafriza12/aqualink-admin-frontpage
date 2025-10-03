@@ -1,6 +1,6 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/(pages)/auth/login/page": "app/(pages)/auth/login/page.js",
-  "/page": "app/page.js",
-  "/(pages)/transaksi/page": "app/(pages)/transaksi/page.js",
-  "/(pages)/kredit-air/page": "app/(pages)/kredit-air/page.js"
+  "/(pages)/dashboard/page": "app/(pages)/dashboard/page.js",
+  "/(pages)/customers/page": "app/(pages)/customers/page.js"
 }

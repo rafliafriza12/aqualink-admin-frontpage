@@ -1,4 +1,4 @@
-// File: /home/whoami/aqualink-admin-frontpage/app/(pages)/auth/login/page.tsx
+// File: D:\KKP\aqualink-admin-frontpage\app\(pages)\auth\login\page.tsx
 import * as entry from '../../../../../../app/(pages)/auth/login/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ProviderLayout from "./layouts/ProviderLayout";
-import Head from "next/head";
+import AdminProvider from "./layouts/AdminProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AquaLink",
-  description: "Kredit Air dan Konservasi",
+  title: "Flowin Admin Panel - PDAM Tirta Daroy",
+  description: "Panel Administrasi Manajemen Air Flowin untuk 14.000 pengguna PDAM Tirta Daroy Banda Aceh",
   icons: {
     icon: "/assets/logo/Aqualink_2.png",
     shortcut: "/assets/logo/Aqualink_2.png",
@@ -34,15 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="id">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Head>
-          <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#000000" />
-        </Head>
-        <ProviderLayout>{children}</ProviderLayout>
+        <AdminProvider>{children}</AdminProvider>
       </body>
     </html>
   );

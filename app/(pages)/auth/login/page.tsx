@@ -1,187 +1,152 @@
-"use client";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/hooks/UseAuth";
-import { Grid, Typography } from "@mui/material";
-import Logo from "@/app/components/logo/Logo";
-import Google from "@/app/components/logo/Google";
-import { useState } from "react";
-import TextField from "@mui/material/TextField";
-import Image from "next/image";
-import InputAdornment from "@mui/material/InputAdornment";
-import IconButton from "@mui/material/IconButton";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import LoadingButton from "@mui/lab/LoadingButton";
-import { useEffect } from "react";
-import Link from "next/link";
-import Aos from "aos";
-import { IsDesktop } from "@/app/hooks";
-import API from "@/app/utils/API";
-import { toast, Bounce, ToastContainer } from "react-toastify";
-import aqualink from "../../../../public/assets/logo/Aqualink_2.png";
+'use client';
 
-const Login: React.FC = () => {
-  const navigation = useRouter();
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const Auth = useAuth();
-  const isDesktop = IsDesktop();
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAdmin } from '../../../layouts/AdminProvider';
+import { 
+  Card, 
+  CardContent, 
+  TextField, 
+  Button, 
+  Typography, 
+  Box, 
+  Alert,
+  CircularProgress,
+  InputAdornment,
+  IconButton
+} from '@mui/material';
+import { 
+  Visibility, 
+  VisibilityOff, 
+  Login as LoginIcon,
+  Security,
+  AdminPanelSettings
+} from '@mui/icons-material';
 
-  const onLogin = () => {
-    setIsLoading(true);
-    API.post("/admin/auth/login", {
-      email: email,
-      password: password,
-    })
-      .then((res) => {
-        setIsLoading(false);
-        const data: any = {
-          user: {
-            id: res.data.data._id,
-            fullName: res.data.data.fullName,
-            phone: res.data.data.phone,
-            email: res.data.data.email,
-          },
-          token: `Bearer ${res.data.data.token}`,
-        };
-        // console.log(data);
-        Auth.login(data);
-        toast.success(`${res.data.message}`, {
-          position: "top-center",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
-      })
-      .catch((err) => {
-        setIsLoading(false);
-        toast.error(`${err.response.data.message}`, {
-          position: "top-center",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
-        console.log("error", err);
-      });
+export default function AdminLogin() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const { login, isLoading } = useAdmin();
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!username || !password) {
+      setError('Username dan password harus diisi');
+      return;
+    }
+
+    const success = await login(username, password);
+    if (success) {
+      router.push('/dashboard');
+    } else {
+      setError('Username atau password salah');
+    }
   };
 
-  useEffect(() => {
-    // Aos.init();
-    // Aos.refresh();
-    if (Auth.auth.isAuthenticated) {
-      navigation.replace("/");
-    }
-  }, [Auth.auth.isAuthenticated, navigation]);
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
-  if (Auth.auth.isAuthenticated) {
-    navigation.replace("/");
-    return null;
-  }
-
-  return isDesktop ? (
-    <div className="w-screen h-screen flex items-center justify-between overflow-hidden">
-      <div className="h-full w-[50%] flex flex-col justify-center items-center gap-5 border-r-[1px] border-gray-400 shadow-[3px_0px_15px_gray]">
-        <Image src={aqualink} alt="Aqualink" width={250} height={250} />
-        <div className=" flex flex-col items-center gap-3">
-          <h1 className=" text-[#202226] font-semibold text-5xl">
-            Selamat Datang
-          </h1>
-          <h6 className=" text-center text-[#838383] text-xl">
-            Selamat datang pemilik kredit air. Silahkan masukkan detail Anda
-            untuk melanjutkan.
-          </h6>
-        </div>
-      </div>
-      <div className="h-full w-[50%] flex flex-col justify-center items-center px-56">
-        <div className=" w-full flex flex-col gap-8 items-center">
-          <div className="flex flex-col gap-2 items-center">
-            <h1
-              data-aos={"fade-up"}
-              data-aos-duration={"1000"}
-              className=" text-[#202226] font-semibold text-2xl"
-            >
-              Silahkan masukkan detail Anda
-            </h1>
-            <h6 className=" text-center text-[#838383] text-sm">
-              Silahkan masukkan detail Anda untuk melanjutkan.
-            </h6>
-          </div>
-          <div className=" w-full flex flex-col gap-5 items-center">
-            <TextField
-              id="email"
-              label="Email"
-              variant="outlined"
-              value={email}
-              type="email"
-              onChange={(e) => setEmail(e.target.value)}
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 2,
+      }}
+    >
+      <Card
+        sx={{
+          maxWidth: 400,
+          width: '100%',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          borderRadius: 3,
+        }}
+      >
+        <CardContent sx={{ p: 4 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              mb: 3,
+            }}
+          >
+            <Box
               sx={{
-                width: "100%",
-                "& .MuiOutlinedInput-root": {
-                  color: "black", // Warna teks input
-                  "& fieldset": {
-                    borderColor: "#EDEDED", // Warna outline default
-                  },
-                  "&:hover fieldset": {
-                    borderColor: "#EDEDED", // Warna outline saat hover
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#EDEDED", // Warna outline saat fokus
-                  },
-                },
-                "& .MuiInputLabel-root": {
-                  color: "black", // Warna label default
-                  "&.Mui-focused": {
-                    color: "black", // Warna label saat fokus
-                  },
-                },
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 2,
+              }}
+            >
+              <AdminPanelSettings sx={{ fontSize: 40, color: 'white' }} />
+            </Box>
+            
+            <Typography variant="h4" component="h1" gutterBottom>
+              Flowin Admin
+            </Typography>
+            <Typography variant="body2" color="text.secondary" textAlign="center">
+              Panel Administrasi PDAM Tirta Daroy
+            </Typography>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              label="Username"
+              value={username}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+              margin="normal"
+              required
+              autoComplete="username"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Security />
+                  </InputAdornment>
+                ),
               }}
             />
+
             <TextField
-              id="password"
+              fullWidth
               label="Password"
-              type={showPassword ? "text" : "password"} // Toggle tipe input
-              variant="outlined"
+              type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              sx={{
-                width: "100%",
-                "& .MuiOutlinedInput-root": {
-                  color: "black", // Warna teks input
-                  "& fieldset": {
-                    borderColor: "#EDEDED", // Warna outline default
-                  },
-                  "&:hover fieldset": {
-                    borderColor: "#EDEDED", // Warna outline saat hover
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#EDEDED", // Warna outline saat fokus
-                  },
-                },
-                "& .MuiInputLabel-root": {
-                  color: "black", // Warna label default
-                  "&.Mui-focused": {
-                    color: "black", // Warna label saat fokus
-                  },
-                },
-              }}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+              margin="normal"
+              required
+              autoComplete="current-password"
               InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Security />
+                  </InputAdornment>
+                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={togglePasswordVisibility}
                       edge="end"
-                      style={{ color: "gray" }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -189,41 +154,38 @@ const Login: React.FC = () => {
                 ),
               }}
             />
-            {/* <button
-          onClick={() => onLogin()}
-          className="w-full bg-[#039FE1] text-center text-white font-semibold text-base rounded-xl py-3"
-        >
-          Sign in
-        </button> */}
-            <LoadingButton
-              loading={isLoading}
-              variant="outlined"
-              onClick={() => onLogin()}
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={isLoading}
+              startIcon={isLoading ? <CircularProgress size={20} /> : <LoginIcon />}
               sx={{
-                backgroundColor: "#039FE1",
-                width: "100%",
-                height: "48px",
-                color: "#ffffff",
-                borderColor: "#039FE1",
-                "&:hover": {
-                  backgroundColor: "#039FE1", // Warna saat hover
-                  borderColor: "#039FE1",
-                },
-                "& .MuiLoadingButton-loadingIndicator": {
-                  color: "#ffffff", // Warna indikator loading
+                mt: 3,
+                mb: 2,
+                py: 1.5,
+                background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #1976D2, #1CB5E0)',
                 },
               }}
             >
-              {!isLoading ? (
-                <h1 className="text-white font-semibold text-base">Sign in</h1>
-              ) : null}
-            </LoadingButton>
-          </div>
-        </div>
-      </div>
-      <ToastContainer />
-    </div>
-  ) : null;
-};
+              {isLoading ? 'Memproses...' : 'Masuk'}
+            </Button>
+          </form>
 
-export default Login;
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Demo Credentials:
+            </Typography>
+            <Typography variant="body2" color="primary">
+              Username: admin | Password: admin123
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}

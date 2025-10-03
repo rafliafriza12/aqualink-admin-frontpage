@@ -1,4 +1,4 @@
-// File: /home/whoami/aqualink-admin-frontpage/app/layout.tsx
+// File: D:\KKP\aqualink-admin-frontpage\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
