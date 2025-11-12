@@ -21,10 +21,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(pages)/dashboard/page.js"
     ],
-    "/_not-found/page": [
+    "/(pages)/monitoring/scada/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/app/(pages)/monitoring/scada/page.js"
+    ],
+    "/(pages)/customers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(pages)/customers/page.js"
+    ],
+    "/(pages)/customers/registration/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(pages)/customers/registration/page.js"
+    ],
+    "/(pages)/operations/connection-data/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(pages)/operations/connection-data/page.js"
     ]
   }
 }

@@ -35,6 +35,9 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Badge,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search,
@@ -49,10 +52,18 @@ import {
   LocationOn,
   AccountBalance,
   WaterDrop,
+  CheckCircle,
+  Cancel,
+  Warning,
+  FilterList,
+  Download,
+  Upload,
+  Refresh,
 } from '@mui/icons-material';
 import AdminLayout from '../../layouts/AdminLayout';
 import { User, CustomerAccount } from '../../types/admin.types';
 import { customerAPI } from '../../utils/API';
+import { Checkbox } from '@mui/material';
 
 // Mock data untuk demo
 const mockCustomers: User[] = [
@@ -148,12 +159,18 @@ export default function CustomerManagement() {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [page, setPage] = useState(1);
   const [rowsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning',
+  });
 
   useEffect(() => {
     fetchCustomers();
@@ -162,18 +179,51 @@ export default function CustomerManagement() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      console.log('🔄 Fetching customers from API...');
+      console.log(
+        'API URL:',
+        `${process.env.NEXT_PUBLIC_BASE_URL}/admin/customers`
+      );
+
       const response = await customerAPI.getAll();
+
+      console.log('✅ API Response:', response);
+      console.log('Response data:', response.data);
+
       if (response.data.success) {
-        setCustomers(response.data.data);
+        // Map fullName to name for consistency
+        const mappedCustomers = response.data.data.map((customer: any) => ({
+          ...customer,
+          id: customer._id,
+          name: customer.fullName,
+          registrationDate: new Date(customer.createdAt),
+        }));
+
+        console.log(
+          '✅ Mapped customers:',
+          mappedCustomers.length,
+          'customers'
+        );
+        setCustomers(mappedCustomers);
       } else {
-        // Fallback to mock data if API fails
+        console.warn('⚠️ API returned success=false, using mock data');
         setCustomers(mockCustomers);
       }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching customers:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
       // Use mock data as fallback
       setCustomers(mockCustomers);
-      setError('Gagal memuat data pelanggan, menggunakan data demo');
+      setError(
+        `Gagal memuat data dari server: ${error.response?.data?.message || error.message}`
+      );
     } finally {
       setLoading(false);
     }
@@ -183,7 +233,10 @@ export default function CustomerManagement() {
     router.push('/customers/registration');
   };
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, customer: User) => {
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    customer: User
+  ) => {
     setAnchorEl(event.currentTarget);
     setSelectedCustomer(customer);
   };
@@ -194,7 +247,9 @@ export default function CustomerManagement() {
   };
 
   const handleViewDetails = () => {
-    setOpenDialog(true);
+    if (selectedCustomer) {
+      router.push(`/customers/detail/${selectedCustomer.id}`);
+    }
     handleMenuClose();
   };
 
@@ -206,56 +261,193 @@ export default function CustomerManagement() {
   };
 
   const handleDeleteCustomer = async () => {
-    if (selectedCustomer && window.confirm('Apakah Anda yakin ingin menghapus pelanggan ini?')) {
+    if (
+      selectedCustomer &&
+      window.confirm('Apakah Anda yakin ingin menghapus pelanggan ini?')
+    ) {
       try {
         await customerAPI.delete(selectedCustomer.id);
         setCustomers(customers.filter(c => c.id !== selectedCustomer.id));
+        setSnackbar({
+          open: true,
+          message: 'Pelanggan berhasil dihapus',
+          severity: 'success',
+        });
         handleMenuClose();
       } catch (error) {
         console.error('Error deleting customer:', error);
-        setError('Gagal menghapus pelanggan');
+        setSnackbar({
+          open: true,
+          message: 'Gagal menghapus pelanggan',
+          severity: 'error',
+        });
       }
     }
     handleMenuClose();
   };
 
+  const handleExportData = () => {
+    try {
+      // Convert data to CSV
+      const headers = [
+        'NIK',
+        'Nama',
+        'Email',
+        'Telepon',
+        'Alamat',
+        'Jenis',
+        'Status',
+        'Tgl Registrasi',
+      ];
+      const csvData = filteredCustomers.map(customer => [
+        customer.nik,
+        customer.name,
+        customer.email,
+        customer.phone,
+        customer.address,
+        getCustomerTypeLabel(customer.customerType),
+        getStatusLabel(customer.accountStatus),
+        customer.registrationDate.toLocaleDateString('id-ID'),
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.map(cell => `"${cell}"`).join(',')),
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute(
+        'download',
+        `data-pelanggan-${new Date().toISOString().split('T')[0]}.csv`
+      );
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSnackbar({
+        open: true,
+        message: 'Data berhasil di-export',
+        severity: 'success',
+      });
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      setSnackbar({
+        open: true,
+        message: 'Gagal export data',
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCustomers.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Pilih pelanggan terlebih dahulu',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    if (
+      window.confirm(
+        `Apakah Anda yakin ingin menghapus ${selectedCustomers.length} pelanggan?`
+      )
+    ) {
+      try {
+        await Promise.all(selectedCustomers.map(id => customerAPI.delete(id)));
+        setCustomers(customers.filter(c => !selectedCustomers.includes(c.id)));
+        setSelectedCustomers([]);
+        setSnackbar({
+          open: true,
+          message: 'Pelanggan berhasil dihapus',
+          severity: 'success',
+        });
+      } catch (error) {
+        console.error('Error bulk deleting:', error);
+        setSnackbar({
+          open: true,
+          message: 'Gagal menghapus pelanggan',
+          severity: 'error',
+        });
+      }
+    }
+  };
+
+  const toggleSelectCustomer = (customerId: string) => {
+    setSelectedCustomers(prev =>
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCustomers.length === filteredCustomers.length) {
+      setSelectedCustomers([]);
+    } else {
+      setSelectedCustomers(filteredCustomers.map(c => c.id));
+    }
+  };
+
   const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.phone.includes(searchTerm) ||
-                         customer.nik.includes(searchTerm);
-    
-    const matchesType = filterType === 'all' || customer.customerType === filterType;
-    const matchesStatus = filterStatus === 'all' || customer.accountStatus === filterStatus;
-    
+    const matchesSearch =
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone.includes(searchTerm) ||
+      customer.nik.includes(searchTerm);
+
+    const matchesType =
+      filterType === 'all' || customer.customerType === filterType;
+    const matchesStatus =
+      filterStatus === 'all' || customer.accountStatus === filterStatus;
+
     return matchesSearch && matchesType && matchesStatus;
   });
 
   const getCustomerTypeLabel = (type: string) => {
     switch (type) {
-      case 'rumah_tangga': return 'Rumah Tangga';
-      case 'komersial': return 'Komersial';
-      case 'industri': return 'Industri';
-      case 'sosial': return 'Sosial';
-      default: return type;
+      case 'rumah_tangga':
+        return 'Rumah Tangga';
+      case 'komersial':
+        return 'Komersial';
+      case 'industri':
+        return 'Industri';
+      case 'sosial':
+        return 'Sosial';
+      default:
+        return type;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'success';
-      case 'inactive': return 'default';
-      case 'suspended': return 'error';
-      default: return 'default';
+      case 'active':
+        return 'success';
+      case 'inactive':
+        return 'default';
+      case 'suspended':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'active': return 'Aktif';
-      case 'inactive': return 'Tidak Aktif';
-      case 'suspended': return 'Ditangguhkan';
-      default: return status;
+      case 'active':
+        return 'Aktif';
+      case 'inactive':
+        return 'Tidak Aktif';
+      case 'suspended':
+        return 'Ditangguhkan';
+      default:
+        return status;
     }
   };
 
@@ -265,8 +457,13 @@ export default function CustomerManagement() {
 
   if (loading) {
     return (
-      <AdminLayout title="Manajemen Pelanggan">
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <AdminLayout title='Manajemen Pelanggan'>
+        <Box
+          display='flex'
+          justifyContent='center'
+          alignItems='center'
+          minHeight='400px'
+        >
           <CircularProgress />
         </Box>
       </AdminLayout>
@@ -274,18 +471,22 @@ export default function CustomerManagement() {
   }
 
   return (
-    <AdminLayout title="Manajemen Pelanggan">
+    <AdminLayout title='Manajemen Pelanggan'>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 2 }}>
+        <Typography variant='h4' component='h1' sx={{ fontWeight: 600, mb: 2 }}>
           Sistem Informasi Pelanggan (SIP)
         </Typography>
 
         {error && (
-          <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert
+            severity='warning'
+            sx={{ mb: 2 }}
+            onClose={() => setError(null)}
+          >
             {error}
           </Alert>
         )}
-        
+
         {/* Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
@@ -296,10 +497,10 @@ export default function CustomerManagement() {
                     <Person />
                   </Avatar>
                   <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                    <Typography variant='h4' sx={{ fontWeight: 600 }}>
                       {customers.length.toLocaleString('id-ID')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant='body2' color='text.secondary'>
                       Total Pelanggan
                     </Typography>
                   </Box>
@@ -307,7 +508,7 @@ export default function CustomerManagement() {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -316,10 +517,12 @@ export default function CustomerManagement() {
                     <AccountBalance />
                   </Avatar>
                   <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {customers.filter(c => c.accountStatus === 'active').length.toLocaleString('id-ID')}
+                    <Typography variant='h4' sx={{ fontWeight: 600 }}>
+                      {customers
+                        .filter(c => c.accountStatus === 'active')
+                        .length.toLocaleString('id-ID')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant='body2' color='text.secondary'>
                       Pelanggan Aktif
                     </Typography>
                   </Box>
@@ -327,7 +530,7 @@ export default function CustomerManagement() {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -336,10 +539,12 @@ export default function CustomerManagement() {
                     <WaterDrop />
                   </Avatar>
                   <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {customers.filter(c => c.customerType === 'rumah_tangga').length.toLocaleString('id-ID')}
+                    <Typography variant='h4' sx={{ fontWeight: 600 }}>
+                      {customers
+                        .filter(c => c.customerType === 'rumah_tangga')
+                        .length.toLocaleString('id-ID')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant='body2' color='text.secondary'>
                       Rumah Tangga
                     </Typography>
                   </Box>
@@ -347,7 +552,7 @@ export default function CustomerManagement() {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -356,10 +561,12 @@ export default function CustomerManagement() {
                     <Phone />
                   </Avatar>
                   <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {customers.filter(c => c.customerType === 'komersial').length.toLocaleString('id-ID')}
+                    <Typography variant='h4' sx={{ fontWeight: 600 }}>
+                      {customers
+                        .filter(c => c.customerType === 'komersial')
+                        .length.toLocaleString('id-ID')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant='body2' color='text.secondary'>
                       Komersial
                     </Typography>
                   </Box>
@@ -369,71 +576,117 @@ export default function CustomerManagement() {
           </Grid>
         </Grid>
 
-        {/* Filters and Search */}
+        {/* Filters and Actions */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Grid container spacing={2} alignItems="center">
+            <Grid container spacing={2} alignItems='center'>
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  placeholder="Cari pelanggan..."
+                  placeholder='Cari NIK, Nama, Email, atau Telepon...'
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   InputProps={{
                     startAdornment: (
-                      <InputAdornment position="start">
+                      <InputAdornment position='start'>
                         <Search />
                       </InputAdornment>
                     ),
                   }}
                 />
               </Grid>
-              
-              <Grid item xs={12} md={3}>
+
+              <Grid item xs={12} md={2}>
                 <FormControl fullWidth>
                   <InputLabel>Jenis Pelanggan</InputLabel>
                   <Select
                     value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    label="Jenis Pelanggan"
+                    onChange={e => setFilterType(e.target.value)}
+                    label='Jenis Pelanggan'
                   >
-                    <MenuItem value="all">Semua</MenuItem>
-                    <MenuItem value="rumah_tangga">Rumah Tangga</MenuItem>
-                    <MenuItem value="komersial">Komersial</MenuItem>
-                    <MenuItem value="industri">Industri</MenuItem>
-                    <MenuItem value="sosial">Sosial</MenuItem>
+                    <MenuItem value='all'>Semua</MenuItem>
+                    <MenuItem value='rumah_tangga'>Rumah Tangga</MenuItem>
+                    <MenuItem value='komersial'>Komersial</MenuItem>
+                    <MenuItem value='industri'>Industri</MenuItem>
+                    <MenuItem value='sosial'>Sosial</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
-              
-              <Grid item xs={12} md={3}>
+
+              <Grid item xs={12} md={2}>
                 <FormControl fullWidth>
                   <InputLabel>Status</InputLabel>
                   <Select
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    label="Status"
+                    onChange={e => setFilterStatus(e.target.value)}
+                    label='Status'
                   >
-                    <MenuItem value="all">Semua</MenuItem>
-                    <MenuItem value="active">Aktif</MenuItem>
-                    <MenuItem value="inactive">Tidak Aktif</MenuItem>
-                    <MenuItem value="suspended">Ditangguhkan</MenuItem>
+                    <MenuItem value='all'>Semua</MenuItem>
+                    <MenuItem value='active'>Aktif</MenuItem>
+                    <MenuItem value='inactive'>Tidak Aktif</MenuItem>
+                    <MenuItem value='suspended'>Ditangguhkan</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
-              
-              <Grid item xs={12} md={2}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<Add />}
-                  onClick={handleAddCustomer}
-                  sx={{ height: '56px' }}
-                >
-                  Tambah
-                </Button>
+
+              <Grid item xs={12} md={4}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    fullWidth
+                    variant='contained'
+                    startIcon={<Add />}
+                    onClick={handleAddCustomer}
+                  >
+                    Tambah
+                  </Button>
+                  <Tooltip title='Export Data'>
+                    <IconButton
+                      color='primary'
+                      onClick={handleExportData}
+                      sx={{ border: 1, borderColor: 'primary.main' }}
+                    >
+                      <Download />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title='Refresh Data'>
+                    <IconButton
+                      color='primary'
+                      onClick={fetchCustomers}
+                      sx={{ border: 1, borderColor: 'primary.main' }}
+                    >
+                      <Refresh />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </Grid>
             </Grid>
+
+            {/* Bulk Actions */}
+            {selectedCustomers.length > 0 && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Typography variant='body2'>
+                    <strong>{selectedCustomers.length}</strong> pelanggan
+                    dipilih
+                  </Typography>
+                  <Button
+                    variant='outlined'
+                    color='error'
+                    size='small'
+                    startIcon={<Delete />}
+                    onClick={handleBulkDelete}
+                  >
+                    Hapus Terpilih
+                  </Button>
+                </Box>
+              </Box>
+            )}
           </CardContent>
         </Card>
 
@@ -443,27 +696,55 @@ export default function CustomerManagement() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell padding='checkbox'>
+                    <Checkbox
+                      indeterminate={
+                        selectedCustomers.length > 0 &&
+                        selectedCustomers.length < filteredCustomers.length
+                      }
+                      checked={
+                        filteredCustomers.length > 0 &&
+                        selectedCustomers.length === filteredCustomers.length
+                      }
+                      onChange={toggleSelectAll}
+                    />
+                  </TableCell>
                   <TableCell>Pelanggan</TableCell>
                   <TableCell>Kontak</TableCell>
                   <TableCell>Jenis</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Tanggal Daftar</TableCell>
-                  <TableCell align="right">Aksi</TableCell>
+                  <TableCell align='right'>Aksi</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedCustomers.map((customer) => (
-                  <TableRow key={customer.id} hover>
+                {paginatedCustomers.map(customer => (
+                  <TableRow
+                    key={customer.id}
+                    hover
+                    selected={selectedCustomers.includes(customer.id)}
+                  >
+                    <TableCell padding='checkbox'>
+                      <Checkbox
+                        checked={selectedCustomers.includes(customer.id)}
+                        onChange={() => toggleSelectCustomer(customer.id)}
+                      />
+                    </TableCell>
                     <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box
+                        sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+                      >
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
                           {customer.name.charAt(0)}
                         </Avatar>
                         <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          <Typography
+                            variant='subtitle2'
+                            sx={{ fontWeight: 600 }}
+                          >
                             {customer.name}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant='caption' color='text.secondary'>
                             NIK: {customer.nik}
                           </Typography>
                         </Box>
@@ -471,42 +752,60 @@ export default function CustomerManagement() {
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2">
-                          <Phone sx={{ fontSize: 14, mr: 1, verticalAlign: 'middle' }} />
+                        <Typography variant='body2'>
+                          <Phone
+                            sx={{
+                              fontSize: 14,
+                              mr: 1,
+                              verticalAlign: 'middle',
+                            }}
+                          />
                           {customer.phone}
                         </Typography>
-                        <Typography variant="body2">
-                          <Email sx={{ fontSize: 14, mr: 1, verticalAlign: 'middle' }} />
+                        <Typography variant='body2'>
+                          <Email
+                            sx={{
+                              fontSize: 14,
+                              mr: 1,
+                              verticalAlign: 'middle',
+                            }}
+                          />
                           {customer.email}
                         </Typography>
-                        <Typography variant="body2">
-                          <LocationOn sx={{ fontSize: 14, mr: 1, verticalAlign: 'middle' }} />
+                        <Typography variant='body2'>
+                          <LocationOn
+                            sx={{
+                              fontSize: 14,
+                              mr: 1,
+                              verticalAlign: 'middle',
+                            }}
+                          />
                           {customer.address}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Chip 
+                      <Chip
                         label={getCustomerTypeLabel(customer.customerType)}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
+                        size='small'
+                        color='primary'
+                        variant='outlined'
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip 
+                      <Chip
                         label={getStatusLabel(customer.accountStatus)}
-                        size="small"
+                        size='small'
                         color={getStatusColor(customer.accountStatus) as any}
                       />
                     </TableCell>
                     <TableCell>
                       {customer.registrationDate.toLocaleDateString('id-ID')}
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align='right'>
                       <IconButton
-                        onClick={(e) => handleMenuOpen(e, customer)}
-                        size="small"
+                        onClick={e => handleMenuOpen(e, customer)}
+                        size='small'
                       >
                         <MoreVert />
                       </IconButton>
@@ -516,13 +815,13 @@ export default function CustomerManagement() {
               </TableBody>
             </Table>
           </TableContainer>
-          
+
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
             <Pagination
               count={Math.ceil(filteredCustomers.length / rowsPerPage)}
               page={page}
               onChange={(_, newPage) => setPage(newPage)}
-              color="primary"
+              color='primary'
             />
           </Box>
         </Card>
@@ -549,7 +848,12 @@ export default function CustomerManagement() {
       </Menu>
 
       {/* Customer Detail Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth='md'
+        fullWidth
+      >
         <DialogTitle>
           Detail Pelanggan
           {selectedCustomer && ` - ${selectedCustomer.name}`}
@@ -558,42 +862,60 @@ export default function CustomerManagement() {
           {selectedCustomer && (
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant='h6' gutterBottom>
                   Informasi Pribadi
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Typography><strong>Nama:</strong> {selectedCustomer.name}</Typography>
-                  <Typography><strong>NIK:</strong> {selectedCustomer.nik}</Typography>
-                  <Typography><strong>Email:</strong> {selectedCustomer.email}</Typography>
-                  <Typography><strong>Telepon:</strong> {selectedCustomer.phone}</Typography>
-                  <Typography><strong>Alamat:</strong> {selectedCustomer.address}</Typography>
-                  <Typography><strong>Jenis:</strong> {getCustomerTypeLabel(selectedCustomer.customerType)}</Typography>
-                  <Typography><strong>Status:</strong> {getStatusLabel(selectedCustomer.accountStatus)}</Typography>
+                  <Typography>
+                    <strong>Nama:</strong> {selectedCustomer.name}
+                  </Typography>
+                  <Typography>
+                    <strong>NIK:</strong> {selectedCustomer.nik}
+                  </Typography>
+                  <Typography>
+                    <strong>Email:</strong> {selectedCustomer.email}
+                  </Typography>
+                  <Typography>
+                    <strong>Telepon:</strong> {selectedCustomer.phone}
+                  </Typography>
+                  <Typography>
+                    <strong>Alamat:</strong> {selectedCustomer.address}
+                  </Typography>
+                  <Typography>
+                    <strong>Jenis:</strong>{' '}
+                    {getCustomerTypeLabel(selectedCustomer.customerType)}
+                  </Typography>
+                  <Typography>
+                    <strong>Status:</strong>{' '}
+                    {getStatusLabel(selectedCustomer.accountStatus)}
+                  </Typography>
                 </Box>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant='h6' gutterBottom>
                   Akun Layanan
                 </Typography>
-                {accounts.filter(acc => acc.customerId === selectedCustomer.id).map(account => (
-                  <Card key={account.id} sx={{ mb: 2 }}>
-                    <CardContent>
-                      <Typography variant="subtitle2" gutterBottom>
-                        {account.accountNumber}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Meter: {account.meterNumber}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Konsumsi: {account.consumption} m³
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Tarif: {account.tariffCategory}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                ))}
+                {accounts
+                  .filter(acc => acc.customerId === selectedCustomer.id)
+                  .map(account => (
+                    <Card key={account.id} sx={{ mb: 2 }}>
+                      <CardContent>
+                        <Typography variant='subtitle2' gutterBottom>
+                          {account.accountNumber}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Meter: {account.meterNumber}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Konsumsi: {account.consumption} m³
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Tarif: {account.tariffCategory}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  ))}
               </Grid>
             </Grid>
           )}
@@ -601,10 +923,12 @@ export default function CustomerManagement() {
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Tutup</Button>
           <Button
-            variant="contained"
+            variant='contained'
             onClick={() => {
               if (selectedCustomer) {
-                router.push(`/customers/registration?edit=${selectedCustomer.id}`);
+                router.push(
+                  `/customers/registration?edit=${selectedCustomer.id}`
+                );
               }
             }}
           >
@@ -612,6 +936,22 @@ export default function CustomerManagement() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </AdminLayout>
   );
 }

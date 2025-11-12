@@ -22,12 +22,12 @@ export interface AdminUser {
   id: string;
   username: string;
   email: string;
-  role: 'administrator' | 'teknisi';
+  role: 'administrator' | 'teknisi' | 'technician';
   permissions: Permission[];
   isActive: boolean;
   lastLogin?: Date;
-  sessionTimeout: number;
-  maxConcurrentSessions: number;
+  sessionTimeout?: number;
+  maxConcurrentSessions?: number;
 }
 
 export interface Permission {
@@ -102,7 +102,12 @@ export interface Subsidy {
 
 export interface WorkOrder {
   id: string;
-  type: 'installation' | 'maintenance' | 'repair' | 'disconnection' | 'emergency';
+  type:
+    | 'installation'
+    | 'maintenance'
+    | 'repair'
+    | 'disconnection'
+    | 'emergency';
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   assignedTo?: string;

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  Grid,
+  Box,
   Card,
   CardContent,
   Typography,
-  Box,
   Button,
   TextField,
   InputAdornment,
@@ -16,444 +16,553 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
   IconButton,
-  Menu,
-  MenuItem,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Avatar,
-  Pagination,
-  FormControl,
-  InputLabel,
-  Select,
+  CircularProgress,
+  Alert,
+  Grid,
 } from '@mui/material';
 import {
   Search,
   Add,
-  MoreVert,
   Edit,
   Delete,
-  Visibility,
-  Build,
-  CheckCircle,
-  Warning,
-  Phone,
-  Email,
-  Assignment,
+  Refresh,
+  Engineering,
 } from '@mui/icons-material';
 import AdminLayout from '../../../layouts/AdminLayout';
+import { useAdmin } from '../../../layouts/AdminProvider';
+import {
+  getAllTechnicians,
+  createTechnician,
+  updateTechnician,
+  deleteTechnician,
+  Technician,
+  CreateTechnicianData,
+} from '../../../services/technician.service';
 
-interface Technician {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  specialization: string;
-  status: 'active' | 'inactive' | 'on_leave';
-  assignedWorkOrders: number;
-  completedWorkOrders: number;
-  rating: number;
-  joinDate: Date;
-}
+export default function TechnicianManagement() {
+  const router = useRouter();
+  const { userRole } = useAdmin();
 
-const mockTechnicians: Technician[] = [
-  {
-    id: '1',
-    name: 'Teknisi Ahmad',
-    email: 'ahmad@pdam.ac.id',
-    phone: '081234567890',
-    specialization: 'Instalasi',
-    status: 'active',
-    assignedWorkOrders: 5,
-    completedWorkOrders: 120,
-    rating: 4.8,
-    joinDate: new Date('2020-01-15'),
-  },
-  {
-    id: '2',
-    name: 'Teknisi Budi',
-    email: 'budi@pdam.ac.id',
-    phone: '081234567891',
-    specialization: 'Perbaikan',
-    status: 'active',
-    assignedWorkOrders: 3,
-    completedWorkOrders: 98,
-    rating: 4.5,
-    joinDate: new Date('2020-06-10'),
-  },
-  {
-    id: '3',
-    name: 'Teknisi Citra',
-    email: 'citra@pdam.ac.id',
-    phone: '081234567892',
-    specialization: 'Inspeksi',
-    status: 'on_leave',
-    assignedWorkOrders: 0,
-    completedWorkOrders: 76,
-    rating: 4.6,
-    joinDate: new Date('2021-03-20'),
-  },
-];
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [filteredTechnicians, setFilteredTechnicians] = useState<Technician[]>(
+    []
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-export default function TechniciansPage() {
-  const [technicians, setTechnicians] = useState<Technician[]>(mockTechnicians);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterSpecialization, setFilterSpecialization] = useState('all');
-  const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [page, setPage] = useState(1);
-  const [rowsPerPage] = useState(10);
+  // Dialog states
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedTechnician, setSelectedTechnician] =
+    useState<Technician | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, technician: Technician) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedTechnician(technician);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleViewDetails = () => {
-    setOpenDialog(true);
-    handleMenuClose();
-  };
-
-  const filteredTechnicians = technicians.filter(tech => {
-    const matchesSearch =
-      tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tech.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tech.phone.includes(searchTerm);
-
-    const matchesStatus = filterStatus === 'all' || tech.status === filterStatus;
-    const matchesSpecialization = filterSpecialization === 'all' || tech.specialization === filterSpecialization;
-
-    return matchesSearch && matchesStatus && matchesSpecialization;
+  // Form states
+  const [formData, setFormData] = useState<CreateTechnicianData>({
+    fullName: '',
+    email: '',
+    password: '',
+    phone: '',
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'inactive': return 'default';
-      case 'on_leave': return 'warning';
-      default: return 'default';
+  const fetchTechnicians = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await getAllTechnicians();
+      console.log('Technician Response:', response);
+
+      // Handle both response structures
+      let dataArray: Technician[] = [];
+      if (Array.isArray(response.data)) {
+        dataArray = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        dataArray = response.data.data;
+      }
+
+      console.log('Parsed Technicians:', dataArray);
+      setTechnicians(dataArray);
+      setFilteredTechnicians(dataArray);
+    } catch (err: any) {
+      console.error('Error fetching technicians:', err);
+      setError(err.response?.data?.message || 'Gagal memuat data teknisi');
+      setTechnicians([]);
+      setFilteredTechnicians([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active': return 'Aktif';
-      case 'inactive': return 'Tidak Aktif';
-      case 'on_leave': return 'Cuti';
-      default: return status;
+  useEffect(() => {
+    fetchTechnicians();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredTechnicians(technicians);
+    } else {
+      const query = searchQuery.toLowerCase();
+      // Pastikan technicians adalah array sebelum filter
+      if (Array.isArray(technicians)) {
+        const filtered = technicians.filter(
+          tech =>
+            tech.fullName.toLowerCase().includes(query) ||
+            tech.email.toLowerCase().includes(query) ||
+            tech.phone.includes(query)
+        );
+        setFilteredTechnicians(filtered);
+      }
+    }
+  }, [searchQuery, technicians]);
+
+  const handleCreateOpen = () => {
+    setFormData({ fullName: '', email: '', password: '', phone: '' });
+    setCreateDialogOpen(true);
+  };
+
+  const handleEditOpen = (technician: Technician) => {
+    setSelectedTechnician(technician);
+    setFormData({
+      fullName: technician.fullName,
+      email: technician.email,
+      password: '',
+      phone: technician.phone,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteOpen = (technician: Technician) => {
+    setSelectedTechnician(technician);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCreate = async () => {
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await createTechnician(formData);
+
+      if (response.status === 201) {
+        setSuccess('Teknisi berhasil ditambahkan');
+        setCreateDialogOpen(false);
+        await fetchTechnicians();
+      }
+    } catch (err: any) {
+      console.error('Error creating technician:', err);
+      setError(err.response?.data?.message || 'Gagal menambahkan teknisi');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const startIndex = (page - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const paginatedTechnicians = filteredTechnicians.slice(startIndex, endIndex);
+  const handleUpdate = async () => {
+    if (!selectedTechnician) return;
+
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const updateData: any = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+      };
+
+      if (formData.password) {
+        updateData.password = formData.password;
+      }
+
+      const response = await updateTechnician(
+        selectedTechnician._id,
+        updateData
+      );
+
+      if (response.status === 200) {
+        setSuccess('Teknisi berhasil diperbarui');
+        setEditDialogOpen(false);
+        await fetchTechnicians();
+      }
+    } catch (err: any) {
+      console.error('Error updating technician:', err);
+      setError(err.response?.data?.message || 'Gagal memperbarui teknisi');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTechnician) return;
+
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await deleteTechnician(selectedTechnician._id);
+
+      if (response.status === 200) {
+        setSuccess('Teknisi berhasil dihapus');
+        setDeleteDialogOpen(false);
+        await fetchTechnicians();
+      }
+    } catch (err: any) {
+      console.error('Error deleting technician:', err);
+      setError(err.response?.data?.message || 'Gagal menghapus teknisi');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Only admin can manage technicians
+  if (userRole !== 'admin') {
+    return (
+      <AdminLayout>
+        <Box sx={{ p: 3 }}>
+          <Alert severity='error'>
+            Akses ditolak. Hanya admin yang dapat mengelola teknisi.
+          </Alert>
+        </Box>
+      </AdminLayout>
+    );
+  }
 
   return (
-    <AdminLayout title="Manajemen Teknisi">
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-            Manajemen Teknisi
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-          >
-            Tambah Teknisi
-          </Button>
+    <AdminLayout>
+      <Box sx={{ p: 3 }}>
+        {/* Header */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+          }}
+        >
+          <Box>
+            <Typography variant='h4' gutterBottom>
+              Manajemen Teknisi
+            </Typography>
+            <Typography variant='body2' color='text.secondary'>
+              Kelola data teknisi lapangan
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant='outlined'
+              startIcon={<Refresh />}
+              onClick={fetchTechnicians}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant='contained'
+              startIcon={<Add />}
+              onClick={handleCreateOpen}
+            >
+              Tambah Teknisi
+            </Button>
+          </Box>
         </Box>
 
-        {/* Summary Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>
-                    <Build />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {technicians.length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Teknisi
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+        {/* Alerts */}
+        {error && (
+          <Alert severity='error' sx={{ mb: 2 }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert
+            severity='success'
+            sx={{ mb: 2 }}
+            onClose={() => setSuccess('')}
+          >
+            {success}
+          </Alert>
+        )}
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'success.main' }}>
-                    <CheckCircle />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {technicians.filter(t => t.status === 'active').length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Teknisi Aktif
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'warning.main' }}>
-                    <Assignment />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {technicians.reduce((sum, t) => sum + t.assignedWorkOrders, 0)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Tugas Aktif
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'info.main' }}>
-                    <CheckCircle />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                      {technicians.reduce((sum, t) => sum + t.completedWorkOrders, 0)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Selesai
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Filters */}
+        {/* Search */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={5}>
-                <TextField
-                  fullWidth
-                  placeholder="Cari teknisi..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    label="Status"
-                  >
-                    <MenuItem value="all">Semua</MenuItem>
-                    <MenuItem value="active">Aktif</MenuItem>
-                    <MenuItem value="inactive">Tidak Aktif</MenuItem>
-                    <MenuItem value="on_leave">Cuti</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel>Spesialisasi</InputLabel>
-                  <Select
-                    value={filterSpecialization}
-                    onChange={(e) => setFilterSpecialization(e.target.value)}
-                    label="Spesialisasi"
-                  >
-                    <MenuItem value="all">Semua</MenuItem>
-                    <MenuItem value="Instalasi">Instalasi</MenuItem>
-                    <MenuItem value="Perbaikan">Perbaikan</MenuItem>
-                    <MenuItem value="Inspeksi">Inspeksi</MenuItem>
-                    <MenuItem value="Pemeliharaan">Pemeliharaan</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
+            <TextField
+              fullWidth
+              placeholder='Cari nama, email, atau nomor telepon...'
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position='start'>
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+            />
           </CardContent>
         </Card>
 
-        {/* Technicians Table */}
+        {/* Table */}
         <Card>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Teknisi</TableCell>
-                  <TableCell>Kontak</TableCell>
-                  <TableCell>Spesialisasi</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Tugas Aktif</TableCell>
-                  <TableCell>Selesai</TableCell>
-                  <TableCell>Rating</TableCell>
-                  <TableCell align="right">Aksi</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedTechnicians.map((tech) => (
-                  <TableRow key={tech.id} hover>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {tech.name.charAt(0)}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {tech.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Bergabung: {tech.joinDate.toLocaleDateString('id-ID')}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">
-                          <Phone sx={{ fontSize: 14, mr: 1, verticalAlign: 'middle' }} />
-                          {tech.phone}
-                        </Typography>
-                        <Typography variant="body2">
-                          <Email sx={{ fontSize: 14, mr: 1, verticalAlign: 'middle' }} />
-                          {tech.email}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{tech.specialization}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getStatusLabel(tech.status)}
-                        size="small"
-                        color={getStatusColor(tech.status) as any}
-                      />
-                    </TableCell>
-                    <TableCell>{tech.assignedWorkOrders}</TableCell>
-                    <TableCell>{tech.completedWorkOrders}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={`⭐ ${tech.rating}`}
-                        size="small"
-                        color="warning"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        onClick={(e) => handleMenuOpen(e, tech)}
-                        size="small"
-                      >
-                        <MoreVert />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-            <Pagination
-              count={Math.ceil(filteredTechnicians.length / rowsPerPage)}
-              page={page}
-              onChange={(_, newPage) => setPage(newPage)}
-              color="primary"
-            />
-          </Box>
-        </Card>
-      </Box>
-
-      {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleViewDetails}>
-          <Visibility sx={{ mr: 1 }} />
-          Lihat Detail
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <Edit sx={{ mr: 1 }} />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <Assignment sx={{ mr: 1 }} />
-          Tugas Aktif
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
-          <Delete sx={{ mr: 1 }} />
-          Hapus
-        </MenuItem>
-      </Menu>
-
-      {/* Technician Detail Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Detail Teknisi</DialogTitle>
-        <DialogContent>
-          {selectedTechnician && (
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  Informasi Teknisi
+          <CardContent>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+                <CircularProgress />
+              </Box>
+            ) : filteredTechnicians.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 5 }}>
+                <Engineering
+                  sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }}
+                />
+                <Typography variant='h6' color='text.secondary'>
+                  Tidak ada data teknisi
                 </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Typography><strong>Nama:</strong> {selectedTechnician.name}</Typography>
-                  <Typography><strong>Email:</strong> {selectedTechnician.email}</Typography>
-                  <Typography><strong>Telepon:</strong> {selectedTechnician.phone}</Typography>
-                  <Typography><strong>Spesialisasi:</strong> {selectedTechnician.specialization}</Typography>
-                  <Typography><strong>Status:</strong> {getStatusLabel(selectedTechnician.status)}</Typography>
-                  <Typography><strong>Tugas Aktif:</strong> {selectedTechnician.assignedWorkOrders}</Typography>
-                  <Typography><strong>Total Selesai:</strong> {selectedTechnician.completedWorkOrders}</Typography>
-                  <Typography><strong>Rating:</strong> ⭐ {selectedTechnician.rating}</Typography>
-                  <Typography><strong>Bergabung:</strong> {selectedTechnician.joinDate.toLocaleDateString('id-ID')}</Typography>
-                </Box>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Nama Lengkap</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Nomor Telepon</TableCell>
+                      <TableCell>Tanggal Dibuat</TableCell>
+                      <TableCell align='center'>Aksi</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {Array.isArray(filteredTechnicians) &&
+                      filteredTechnicians.map(tech => (
+                        <TableRow key={tech._id} hover>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                              }}
+                            >
+                              <Engineering color='primary' />
+                              <Typography variant='body2' fontWeight='bold'>
+                                {tech.fullName}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>{tech.email}</TableCell>
+                          <TableCell>{tech.phone}</TableCell>
+                          <TableCell>
+                            {new Date(tech.createdAt).toLocaleDateString(
+                              'id-ID'
+                            )}
+                          </TableCell>
+                          <TableCell align='center'>
+                            <Tooltip title='Edit'>
+                              <IconButton
+                                size='small'
+                                color='primary'
+                                onClick={() => handleEditOpen(tech)}
+                              >
+                                <Edit />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title='Hapus'>
+                              <IconButton
+                                size='small'
+                                color='error'
+                                onClick={() => handleDeleteOpen(tech)}
+                              >
+                                <Delete />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Create Dialog */}
+        <Dialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+          maxWidth='sm'
+          fullWidth
+        >
+          <DialogTitle>Tambah Teknisi Baru</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Nama Lengkap'
+                  value={formData.fullName}
+                  onChange={e =>
+                    setFormData({ ...formData, fullName: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Email'
+                  type='email'
+                  value={formData.email}
+                  onChange={e =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Password'
+                  type='password'
+                  value={formData.password}
+                  onChange={e =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Nomor Telepon'
+                  value={formData.phone}
+                  onChange={e =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                />
               </Grid>
             </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Tutup</Button>
-          <Button variant="contained">Edit Teknisi</Button>
-        </DialogActions>
-      </Dialog>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateDialogOpen(false)}>Batal</Button>
+            <Button
+              variant='contained'
+              onClick={handleCreate}
+              disabled={
+                actionLoading ||
+                !formData.fullName ||
+                !formData.email ||
+                !formData.password ||
+                !formData.phone
+              }
+            >
+              {actionLoading ? <CircularProgress size={24} /> : 'Tambah'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
+          maxWidth='sm'
+          fullWidth
+        >
+          <DialogTitle>Edit Teknisi</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Nama Lengkap'
+                  value={formData.fullName}
+                  onChange={e =>
+                    setFormData({ ...formData, fullName: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Email'
+                  type='email'
+                  value={formData.email}
+                  onChange={e =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Password (Kosongkan jika tidak ingin diubah)'
+                  type='password'
+                  value={formData.password}
+                  onChange={e =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label='Nomor Telepon'
+                  value={formData.phone}
+                  onChange={e =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditDialogOpen(false)}>Batal</Button>
+            <Button
+              variant='contained'
+              onClick={handleUpdate}
+              disabled={
+                actionLoading ||
+                !formData.fullName ||
+                !formData.email ||
+                !formData.phone
+              }
+            >
+              {actionLoading ? <CircularProgress size={24} /> : 'Simpan'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Dialog */}
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={() => setDeleteDialogOpen(false)}
+        >
+          <DialogTitle>Konfirmasi Hapus</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Apakah Anda yakin ingin menghapus teknisi{' '}
+              <strong>{selectedTechnician?.fullName}</strong>?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)}>Batal</Button>
+            <Button
+              variant='contained'
+              color='error'
+              onClick={handleDelete}
+              disabled={actionLoading}
+            >
+              {actionLoading ? <CircularProgress size={24} /> : 'Hapus'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
     </AdminLayout>
   );
 }

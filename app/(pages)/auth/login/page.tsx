@@ -3,31 +3,34 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdmin } from '../../../layouts/AdminProvider';
-import { 
-  Card, 
-  CardContent, 
-  TextField, 
-  Button, 
-  Typography, 
-  Box, 
+import {
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Typography,
+  Box,
   Alert,
   CircularProgress,
   InputAdornment,
-  IconButton
+  IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
-import { 
-  Visibility, 
-  VisibilityOff, 
+import {
+  Visibility,
+  VisibilityOff,
   Login as LoginIcon,
   Security,
-  AdminPanelSettings
+  AdminPanelSettings,
 } from '@mui/icons-material';
 
 export default function AdminLogin() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [role, setRole] = useState<'admin' | 'technician'>('admin');
   const { login, isLoading } = useAdmin();
   const router = useRouter();
 
@@ -35,16 +38,16 @@ export default function AdminLogin() {
     e.preventDefault();
     setError('');
 
-    if (!username || !password) {
-      setError('Username dan password harus diisi');
+    if (!email || !password) {
+      setError('Email dan password harus diisi');
       return;
     }
 
-    const success = await login(username, password);
+    const success = await login(email, password, role);
     if (success) {
       router.push('/dashboard');
     } else {
-      setError('Username atau password salah');
+      setError('Email atau password salah');
     }
   };
 
@@ -94,33 +97,60 @@ export default function AdminLogin() {
             >
               <AdminPanelSettings sx={{ fontSize: 40, color: 'white' }} />
             </Box>
-            
-            <Typography variant="h4" component="h1" gutterBottom>
+
+            <Typography variant='h4' component='h1' gutterBottom>
               Flowin Admin
             </Typography>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
+            <Typography
+              variant='body2'
+              color='text.secondary'
+              textAlign='center'
+            >
               Panel Administrasi PDAM Tirta Daroy
             </Typography>
           </Box>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity='error' sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
 
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant='body2'
+              color='text.secondary'
+              sx={{ mb: 1, textAlign: 'center' }}
+            >
+              Login Sebagai:
+            </Typography>
+            <ToggleButtonGroup
+              value={role}
+              exclusive
+              onChange={(e, newRole) => newRole && setRole(newRole)}
+              fullWidth
+              sx={{ mb: 2 }}
+            >
+              <ToggleButton value='admin'>Admin</ToggleButton>
+              <ToggleButton value='technician'>Teknisi</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Username"
-              value={username}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
-              margin="normal"
+              label='Email'
+              type='email'
+              value={email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setEmail(e.target.value)
+              }
+              margin='normal'
               required
-              autoComplete="username"
+              autoComplete='email'
               InputProps={{
                 startAdornment: (
-                  <InputAdornment position="start">
+                  <InputAdornment position='start'>
                     <Security />
                   </InputAdornment>
                 ),
@@ -129,25 +159,24 @@ export default function AdminLogin() {
 
             <TextField
               fullWidth
-              label="Password"
+              label='Password'
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-              margin="normal"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setPassword(e.target.value)
+              }
+              margin='normal'
               required
-              autoComplete="current-password"
+              autoComplete='current-password'
               InputProps={{
                 startAdornment: (
-                  <InputAdornment position="start">
+                  <InputAdornment position='start'>
                     <Security />
                   </InputAdornment>
                 ),
                 endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={togglePasswordVisibility}
-                      edge="end"
-                    >
+                  <InputAdornment position='end'>
+                    <IconButton onClick={togglePasswordVisibility} edge='end'>
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
@@ -156,12 +185,14 @@ export default function AdminLogin() {
             />
 
             <Button
-              type="submit"
+              type='submit'
               fullWidth
-              variant="contained"
-              size="large"
+              variant='contained'
+              size='large'
               disabled={isLoading}
-              startIcon={isLoading ? <CircularProgress size={20} /> : <LoginIcon />}
+              startIcon={
+                isLoading ? <CircularProgress size={20} /> : <LoginIcon />
+              }
               sx={{
                 mt: 3,
                 mb: 2,
@@ -177,11 +208,22 @@ export default function AdminLogin() {
           </form>
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Demo Credentials:
+            <Typography variant='body2' color='text.secondary'>
+              Testing Credentials:
             </Typography>
-            <Typography variant="body2" color="primary">
-              Username: admin | Password: admin123
+            <Typography
+              variant='body2'
+              color='primary'
+              sx={{ fontSize: '0.75rem' }}
+            >
+              Admin: admin@pdam.com / admin123
+            </Typography>
+            <Typography
+              variant='body2'
+              color='primary'
+              sx={{ fontSize: '0.75rem' }}
+            >
+              Teknisi: teknisi@pdam.com / teknisi123
             </Typography>
           </Box>
         </CardContent>
